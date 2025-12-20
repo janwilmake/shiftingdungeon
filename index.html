@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShiftingDungeon.com - Dynamic D&D Map Builder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #f39c12;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            color: #bbb;
+            font-style: italic;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 250px 1fr 250px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .sidebar h2 {
+            color: #f39c12;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .tile-palette {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tile-option {
+            aspect-ratio: 1;
+            border: 2px solid #555;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tile-option:hover {
+            transform: scale(1.1);
+            border-color: #f39c12;
+            box-shadow: 0 0 15px rgba(243, 156, 18, 0.5);
+        }
+
+        .tile-option.selected {
+            border-color: #f39c12;
+            background: rgba(243, 156, 18, 0.3);
+        }
+
+        .map-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            overflow: auto;
+            max-height: 80vh;
+        }
+
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(15, 60px);
+            grid-template-rows: repeat(15, 60px);
+            gap: 2px;
+            margin: 0 auto;
+            width: fit-content;
+        }
+
+        .map-cell {
+            width: 60px;
+            height: 60px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            background: rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+
+        .map-cell:hover {
+            background: rgba(243, 156, 18, 0.2);
+            border-color: #f39c12;
+        }
+
+        .map-cell.filled {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(243, 156, 18, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #eee;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .player-tokens {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .player-token {
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .player-token:hover {
+            transform: translateX(5px);
+        }
+
+        .player-token.selected {
+            border-color: #f39c12;
+        }
+
+        .token-red {
+            background: rgba(231, 76, 60, 0.3);
+        }
+
+        .token-blue {
+            background: rgba(52, 152, 219, 0.3);
+        }
+
+        .token-green {
+            background: rgba(46, 204, 113, 0.3);
+        }
+
+        .token-purple {
+            background: rgba(155, 89, 182, 0.3);
+        }
+
+        .info-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .info-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #f39c12;
+        }
+
+        .info-box h3 {
+            color: #f39c12;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .info-box p {
+            color: #ccc;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.85em;
+        }
+
+        .mode-btn.active {
+            background: #f39c12;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                order: 2;
+            }
+
+            .map-container {
+                order: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>🏰 ShiftingDungeon.com</h1>
+        <p class="tagline">Dynamic D&D Map Builder - Where Every Adventure Shifts</p>
+    </header>
+
+    <div class="container">
+        <!-- Left Sidebar: Tiles & Players -->
+        <div class="sidebar">
+            <h2>🎲 Dungeon Tiles</h2>
+
+            <div class="mode-toggle">
+                <button class="mode-btn btn-secondary active" onclick="setMode('tile')">Tiles</button>
+                <button class="mode-btn btn-secondary" onclick="setMode('player')">Players</button>
+            </div>
+
+            <div id="tileMode">
+                <div class="tile-palette">
+                    <div class="tile-option" onclick="selectTile('🟫')" title="Room">🟫</div>
+                    <div class="tile-option" onclick="selectTile('🚪')" title="Door">🚪</div>
+                    <div class="tile-option" onclick="selectTile('🪜')" title="Stairs">🪜</div>
+                    <div class="tile-option" onclick="selectTile('🗝️')" title="Treasure">🗝️</div>
+                    <div class="tile-option" onclick="selectTile('⚔️')" title="Combat">⚔️</div>
+                    <div class="tile-option" onclick="selectTile('🌲')" title="Forest">🌲</div>
+                    <div class="tile-option" onclick="selectTile('🌊')" title="Water">🌊</div>
+                    <div class="tile-option" onclick="selectTile('⛰️')" title="Mountain">⛰️</div>
+                    <div class="tile-option" onclick="selectTile('🔥')" title="Hazard">🔥</div>
+                    <div class="tile-option" onclick="selectTile('🏛️')" title="Temple">🏛️</div>
+                    <div class="tile-option" onclick="selectTile('💀')" title="Danger">💀</div>
+                    <div class="tile-option" onclick="selectTile('✨')" title="Magic">✨</div>
+                </div>
+            </div>
+
+            <div id="playerMode" style="display: none;">
+                <h2>👥 Player Tokens</h2>
+                <div class="player-tokens">
+                    <div class="player-token token-red" onclick="selectPlayer('🔴')">
+                        🔴 Player 1
+                    </div>
+                    <div class="player-token token-blue" onclick="selectPlayer('🔵')">
+                        🔵 Player 2
+                    </div>
+                    <div class="player-token token-green" onclick="selectPlayer('🟢')">
+                        🟢 Player 3
+                    </div>
+                    <div class="player-token token-purple" onclick="selectPlayer('🟣')">
+                        🟣 Player 4
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn-primary" onclick="shiftMap()">🔄 SHIFT MAP</button>
+                <button class="btn-secondary" onclick="randomTile()">🎲 Random Tile</button>
+                <button class="btn-danger" onclick="clearMap()">🗑️ Clear All</button>
+            </div>
+        </div>
+
+        <!-- Center: Map Grid -->
+        <div class="map-container">
+            <div class="map-grid" id="mapGrid"></div>
+        </div>
+
+        <!-- Right Sidebar: Info -->
+        <div class="sidebar">
+            <div class="info-panel">
+                <div class="info-box">
+                    <h3>📖 How to Play</h3>
+                    <p>
+                        <strong>1.</strong> Select a tile or player token<br>
+                        <strong>2.</strong> Click on the map to place it<br>
+                        <strong>3.</strong> Use "SHIFT MAP" to randomize the layout<br>
+                        <strong>4.</strong> Build your adventure dynamically!
+                    </p>
+                </div>
+
+                <div class="info-box">
+                    <h3>🎮 GM Controls</h3>
+                    <p>
+                        The Game Master can shift the dungeon at any time, creating surprise encounters and dynamic
+                        storytelling opportunities.
+                    </p>
+                </div>
+
+                <div class="info-box">
+                    <h3>💡 Tips</h3>
+                    <p>
+                        • Start with room tiles (🟫)<br>
+                        • Connect areas with doors (🚪)<br>
+                        • Add hazards for challenge<br>
+                        • Place treasures strategically
+                    </p>
+                </div>
+
+                <div class="info-box">
+                    <h3>📊 Map Stats</h3>
+                    <p>
+                        Tiles Placed: <strong id="tileCount">0</strong><br>
+                        Players: <strong id="playerCount">0</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedTile = '🟫';
+        let currentMode = 'tile';
+        let mapData = {};
+        let playerPositions = {};
+
+        // Initialize grid
+        function initGrid() {
+            const grid = document.getElementById('mapGrid');
+            for (let i = 0; i < 225; i++) { // 15x15 grid
+                const cell = document.createElement('div');
+                cell.className = 'map-cell';
+                cell.dataset.index = i;
+                cell.onclick = () => placeOnMap(i);
+                grid.appendChild(cell);
+            }
+        }
+
+        function selectTile(tile) {
+            selectedTile = tile;
+            document.querySelectorAll('.tile-option').forEach(el => el.classList.remove('selected'));
+            event.target.classList.add('selected');
+        }
+
+        function selectPlayer(player) {
+            selectedTile = player;
+            document.querySelectorAll('.player-token').forEach(el => el.classList.remove('selected'));
+            event.target.classList.add('selected');
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('tileMode').style.display = mode === 'tile' ? 'block' : 'none';
+            document.getElementById('playerMode').style.display = mode === 'player' ? 'block' : 'none';
+
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function placeOnMap(index) {
+            const cell = document.querySelector(`[data-index="${index}"]`);
+
+            if (selectedTile.includes('🔴') || selectedTile.includes('🔵') ||
+                selectedTile.includes('🟢') || selectedTile.includes('🟣')) {
+                // Remove player from old position
+                Object.keys(playerPositions).forEach(key => {
+                    if (playerPositions[key] === selectedTile) {
+                        delete playerPositions[key];
+                        const oldCell = document.querySelector(`[data-index="${key}"]`);
+                        if (oldCell && mapData[key]) {
+                            oldCell.textContent = mapData[key];
+                        } else if (oldCell) {
+                            oldCell.textContent = '';
+                            oldCell.classList.remove('filled');
+                        }
+                    }
+                });
+                playerPositions[index] = selectedTile;
+            } else {
+                mapData[index] = selectedTile;
+            }
+
+            cell.textContent = selectedTile;
+            cell.classList.add('filled');
+            updateStats();
+        }
+
+        function shiftMap() {
+            const tiles = Object.values(mapData);
+            const indices = Object.keys(mapData).map(Number);
+
+            if (tiles.length === 0) return;
+
+            // Shuffle tiles
+            for (let i = tiles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+            }
+
+            // Reassign to map
+            indices.forEach((index, i) => {
+                mapData[index] = tiles[i];
+                const cell = document.querySelector(`[data-index="${index}"]`);
+                cell.textContent = tiles[i];
+            });
+        }
+
+        function randomTile() {
+            const tiles = ['🟫', '🚪', '🪜', '🗝️', '⚔️', '🌲', '🌊', '⛰️', '🔥', '🏛️', '💀', '✨'];
+            selectedTile = tiles[Math.floor(Math.random() * tiles.length)];
+
+            document.querySelectorAll('.tile-option').forEach(el => {
+                el.classList.toggle('selected', el.textContent === selectedTile);
+            });
+        }
+
+        function clearMap() {
+            if (confirm('Clear the entire dungeon map?')) {
+                mapData = {};
+                playerPositions = {};
+                document.querySelectorAll('.map-cell').forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('filled');
+                });
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('tileCount').textContent = Object.keys(mapData).length;
+            document.getElementById('playerCount').textContent = Object.keys(playerPositions).length;
+        }
+
+        // Initialize on load
+        initGrid();
+    </script>
+</body>
+
+</html>
